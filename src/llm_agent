@@ -1,0 +1,129 @@
+"""
+src/llm_agent.py
+
+Tier-3 "agentic" agent: an LLM reasons in plain English over the current
+board state and returns a chosen action, instead of a hand-tuned scoring
+function or a rollout search. This is what the challenge brief calls
+"agentic play" -- the model is literally deciding, turn by turn, using the
+same legal_actions()/apply_action() contract as HeuristicAgent and
+MCTSAgent, so it drops into run_tournament() with zero changes elsewhere.
+
+Provider is switched with one environment variable so either Anthropic or
+Gemini can back the same agent -- no code change, no branching writeup:
+
+    export LLM_PROVIDER=anthropic   # default
+    export ANTHROPIC_API_KEY=...
+    export ANTHROPIC_MODEL=claude-sonnet-4-6      # optional override
+
+    export LLM_PROVIDER=gemini
+    export GEMINI_API_KEY=...
+    export GEMINI_MODEL=gemini-2.5-flash          # optional override
+
+Safety property that matters for the Model Score criteria ("consistent
+performance", "doesn't rely on situational advantage"): the LLM's answer is
+always re-checked against `legal_actions(state, side)` before being
+applied. An empty/slow/malformed/hallucinated response can never crash a
+match or play an illegal move -- it silently falls back to HeuristicAgent
+for that single decision, so a flaky API call degrades gracefully instead
+of corrupting the statistics in self-play runs.
+"""
+from __future__ import annotations
+import json
+import os
+import re
+from src.game_state import MatchState
+from src.rules_engine import Action, legal_actions
+from src.agent import HeuristicAgent
+
+
+def _describe_state(state: MatchState, side: str) -> str:
+    me = getattr(state, side)
+    opp_side = "opponent" if side == "player" else "player"
+    opp = getattr(state, opp_side)
+    lines = [
+        f"Turn {state.turn_number}. You are '{side}'. "
+        f"Your prizes remaining: {me.prizes_remaining}. Opponent prizes remaining: {opp.prizes_remaining}.",
+    ]
+    if me.active:
+        lines.append(f"Your active: {me.active.card.name}, HP {me.active.remaining_hp}/{me.active.card.hp}, "
+                      f"energy attached: {me.active.energy_attached}, retreat cost: {me.active.card.retreat_cost}.")
+    lines.append(f"Your bench: {[p.card.name for p in me.bench]}")
+    if opp.active:
+        lines.append(f"Opponent's active: {opp.active.card.name}, HP {opp.active.remaining_hp}/{opp.active.card.hp}.")
+    return "\n".join(lines)
+
+
+def _prompt(state: MatchState, side: str, actions: list) -> str:
+    numbered = "\n".join(f"[{i}] {a.kind} {a.payload or ''}" for i, a in enumerate(actions))
+    return (
+        f"{_describe_state(state, side)}\n\n"
+        f"Choose the strongest legal action for a competitive Pokemon TCG "
+        f"battle from this list:\n{numbered}\n\n"
+        f"Reply with ONLY compact JSON, no prose: "
+        f'{{"index": <int 0-{len(actions)-1}>, "why": "<max 12 words>"}}'
+    )
+
+
+def _extract_json(raw: str) -> dict:
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    return json.loads(match.group(0) if match else raw)
+
+
+class LLMAgent:
+    """Drop-in agent (choose_action(state, side) -> Action) backed by an LLM."""
+
+    def __init__(self, provider: str | None = None):
+        self.provider = provider or os.environ.get("LLM_PROVIDER", "anthropic")
+        self.anthropic_model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+        self.gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+        self.name = f"LLMAgent[{self.provider}]"
+        self._fallback = HeuristicAgent()
+        self.last_rationale = ""  # exposed for battle-log / video b-roll
+
+    def choose_action(self, state: MatchState, side: str) -> Action:
+        actions = legal_actions(state, side)
+        if not actions:
+            return Action("pass", {})
+        if len(actions) == 1:
+            return actions[0]
+
+        try:
+            raw = self._call_provider(_prompt(state, side, actions))
+            obj = _extract_json(raw)
+            idx = int(obj["index"])
+            if 0 <= idx < len(actions):
+                self.last_rationale = str(obj.get("why", ""))[:120]
+                return actions[idx]
+            raise ValueError(f"index {idx} out of range")
+        except Exception as e:
+            # Never let a network hiccup or a bad completion break a match.
+            self.last_rationale = f"(heuristic fallback: {type(e).__name__})"
+            return self._fallback.choose_action(state, side)
+
+    # ---------------- provider calls ----------------
+    def _call_provider(self, prompt: str) -> str:
+        if self.provider == "anthropic":
+            return self._call_anthropic(prompt)
+        if self.provider == "gemini":
+            return self._call_gemini(prompt)
+        raise ValueError(f"Unknown LLM_PROVIDER '{self.provider}' (use 'anthropic' or 'gemini')")
+
+    def _call_anthropic(self, prompt: str) -> str:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        msg = client.messages.create(
+            model=self.anthropic_model,
+            max_tokens=150,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return "".join(b.text for b in msg.content if hasattr(b, "text"))
+
+    def _call_gemini(self, prompt: str) -> str:
+        import google.generativeai as genai
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        model = genai.GenerativeModel(self.gemini_model)
+        resp = model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.4, "max_output_tokens": 150},
+        )
+        return resp.text
