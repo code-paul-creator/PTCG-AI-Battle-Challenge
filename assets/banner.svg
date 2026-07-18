@@ -1,0 +1,45 @@
+<svg width="1000" height="220" viewBox="0 0 1000 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#141426"/>
+      <stop offset="100%" stop-color="#361446"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#ff8c28" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ff8c28" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1000" height="220" fill="url(#bg)"/>
+  <circle cx="500" cy="110" r="160" fill="url(#glow)">
+    <animate attributeName="r" values="150;175;150" dur="3.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- left card (heuristic) -->
+  <g transform="translate(330,110) rotate(-10)">
+    <rect x="-70" y="-95" width="140" height="190" rx="14" fill="#f0f0f5" stroke="#ff7a1a" stroke-width="5">
+      <animateTransform attributeName="transform" type="translate" values="0,0;0,-6;0,0" dur="2.4s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <!-- right card (mcts) -->
+  <g transform="translate(670,110) rotate(10)">
+    <rect x="-70" y="-95" width="140" height="190" rx="14" fill="#f0f0f5" stroke="#3c8cff" stroke-width="5">
+      <animateTransform attributeName="transform" type="translate" values="0,0;0,6;0,0" dur="2.4s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <!-- clashing bolt -->
+  <polygon points="500,60 470,120 505,120 480,170 545,105 505,105"
+           fill="#ffd63c" stroke="#ffffff" stroke-width="2">
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="1.2s" repeatCount="indefinite"/>
+  </polygon>
+
+  <!-- title -->
+  <text x="500" y="35" text-anchor="middle" font-family="Verdana, sans-serif" font-size="26" font-weight="bold" fill="#ffffff">
+    PTCG AI Battle Challenge
+  </text>
+  <text x="500" y="205" text-anchor="middle" font-family="Verdana, sans-serif" font-size="15" fill="#ffd678">
+    Agentic strategy &amp; data-driven deckbuilding for the Pokémon Trading Card Game
+  </text>
+</svg>
