@@ -6,7 +6,7 @@
 
 **Agentic strategy & data-driven deckbuilding for the Pokémon Trading Card Game**
 
-[![CI](https://github.com/USERNAME/ptcg-ai-battle/actions/workflows/ci.yml/badge.svg)](https://github.com/USERNAME/ptcg-ai-battle/actions/workflows/ci.yml)
+[![CI](https://github.com/code-paul-creator/PTCG-AI-Battle-Challenge/actions/workflows/ci.yml/badge.svg)](https://github.com/code-paul-creator/PTCG-AI-Battle-Challenge/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
@@ -15,6 +15,12 @@
 *A submission for The Pokémon Company's PTCG AI Battle Challenge — Main Track*
 
 </div>
+
+🚀 **[Click here to view the Live Demo](https://code-paul-creator.github.io/PTCG-AI-Battle-Challenge/)** -**📊 Built for the Pokémon TCG AI Battle Challenge — Strategy Track**
+
+📺 **[youtube video](https://youtube.com/shorts/gAiK7iMbLUE?si=Quqjc5RVbpSTRJ7S)** -**I made 3 AI agents fight each other at Pokémon TCG.
+1,500 matches. ±1.2pp stable win rate. Live demo in the link.**
+
 
 ---
 
